@@ -1,0 +1,113 @@
+on:
+  release:
+    types: [released]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  version_bump:
+    name: update project version
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - name: 🛑 Validate tag name
+        run: |
+          if [[ ! $GITHUB_REF =~ ^refs/tags/[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "The release tag name format is incorrect. It must have the following format: \"1.2.3\""
+            exit 1
+          fi
+
+      - name: ✅ Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: 🌏 Set up Git
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+      - name: ⬆️ Bump version of package.json
+        uses: ramonpaolo/bump-version@v2.3.1
+        with:
+          tag: ${{ github.ref_name }}
+          commit: false
+
+      - name: ✒️ Commit release
+        uses: EndBug/add-and-commit@v9
+        with:
+          default_author: github_actions
+          message: "release: ${{ github.ref_name }}"
+          push: false
+
+      - name: ☁️ Push changes
+        run: |
+          git push origin main
+          git push origin ${{ github.ref_name }}
+          git tag -f ${{ github.ref_name }}
+          git push origin --force --tags
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: version_bump
+    steps:
+      - name: ✅ Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🌏 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: 🌏 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: 📦 Install dependencies
+        run: pnpm install
+
+      - name: 🛠️ Build
+        run: npm run build
+
+      - name: 🧶 Create tarball of the folder
+        run: tar -czvf front.tar.gz -C dist/front/browser
+
+      - name: 🎉 Upload release
+        uses: softprops/action-gh-release@v2
+        with:
+          fail_on_unmatched_files: true
+          files: front.tar.gz
+
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: build
+    steps:
+      - name: 📲 Download latest release
+        uses: robinraju/release-downloader@v1
+        with:
+          latest: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fileName: "front.tar.gz"
+          extract: true
+          out-file-path: "dist"
+
+      - name: 🌐 Deploy on staging/canary
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_URL }}
+          username: ${{ secrets.FTP_PROD_TEST_USERNAME }}
+          password: ${{ secrets.FTP_PROD_TEST_PASSWORD }}
+          protocol: "ftps"
+          local-dir: dist/
+          server-dir: /
