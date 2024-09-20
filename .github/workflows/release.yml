@@ -80,7 +80,7 @@ jobs:
         run: npm run build
 
       - name: 🧶 Create tarball of the folder
-        run: tar -czvf front.tar.gz -C dist/front/browser
+        run: tar -czvf front.tar.gz -C dist/front/browser .
 
       - name: 🎉 Upload release
         uses: softprops/action-gh-release@v2
