@@ -87,27 +87,3 @@ jobs:
         with:
           fail_on_unmatched_files: true
           files: front.tar.gz
-
-  deploy:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: build
-    steps:
-      - name: 📲 Download latest release
-        uses: robinraju/release-downloader@v1
-        with:
-          latest: true
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fileName: "front.tar.gz"
-          extract: true
-          out-file-path: "dist"
-
-      - name: 🌐 Deploy on staging/canary
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_URL }}
-          username: ${{ secrets.FTP_PROD_TEST_USERNAME }}
-          password: ${{ secrets.FTP_PROD_TEST_PASSWORD }}
-          protocol: "ftps"
-          local-dir: dist/
-          server-dir: /

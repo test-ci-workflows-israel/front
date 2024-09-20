@@ -1,0 +1,30 @@
+name: deploy on production
+
+on: workflow_dispatch
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📲 Download latest release
+        uses: robinraju/release-downloader@v1
+        with:
+          latest: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fileName: "front.tar.gz"
+          extract: true
+          out-file-path: "dist"
+
+      - name: 🌐 Deploy on staging/canary
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_URL }}
+          username: ${{ secrets.FTP_PROD_USERNAME }}
+          password: ${{ secrets.FTP_PROD_PASSWORD }}
+          protocol: "ftps"
+          local-dir: dist/
+          server-dir: /
