@@ -5,7 +5,7 @@ on:
   - workflow_call
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-front
   cancel-in-progress: true
 
 jobs:
@@ -15,6 +15,7 @@ jobs:
       - name: 📲 Download latest release
         uses: robinraju/release-downloader@v1
         with:
+          repository: test-ci-workflows-israel/front
           latest: true
           token: ${{ secrets.GITHUB_TOKEN }}
           fileName: "front.tar.gz"
